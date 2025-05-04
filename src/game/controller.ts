@@ -1,6 +1,6 @@
 import { CellIndex, CellValue, Clue, Puzzle } from './provider.ts';
 import { loadPuzzle, savePuzzle } from './storage.ts';
-import { isSameCell, opposingDirection } from '../util.ts';
+import { isSameCell, movementDirectionToGridDirection, opposingDirection } from '../util.ts';
 import { Preferences } from './preferences.ts';
 
 export type GridDirection = 'across' | 'down';
@@ -70,7 +70,7 @@ export class Controller {
 
         if (key === 'Enter' || key === 'Tab') {
             // Enter or Tab we want to find the next clue forcefully, and if we are at the end of clues, then go back to the start
-            const next = this.findNextClue(this._direction);
+            const next = this.findNextClue(this._direction === 'across' ? 'right' : 'down');
             if (next) {
                 this._selectedCell = next;
                 return;
@@ -84,7 +84,7 @@ export class Controller {
 
         if (key === 'ArrowLeft') {
             // Any arrow keys, if our direction doesn't match the key direction, then we just change direction and stop.
-            // If it does match, then we move the cursor in that direction forcefully
+            // If it does match, then we move the cursor in that direction
             if (!this.changeDirection('across')) { this.moveCursor('left', 'force'); }
             return;
         }
@@ -170,34 +170,30 @@ export class Controller {
             [newRow, newCol] = this.findNextCell(direction, this._selectedCell);
         } else {
             // next-invalid
-            const predicate = (cell: CellValue, r: number, c: number) => cell === '' || this._puzzle.cells[r][c] !== cell;
-            [newRow, newCol] = this.findNextCell(direction, this._selectedCell, predicate);
+            const clue = this.currentClue;
+            const currentClueIndex = clue.cells.findIndex(cell => isSameCell(cell, this._selectedCell));
+            const maybeNextClueIndex = clue.cells
+                // Start off with all the cells after the current cell
+                .slice(currentClueIndex + 1)
+                // If none of those work, then wrap back around
+                .concat(clue.cells)
+                // Don't want the current cell
+                .filter(c => !isSameCell(c, this._selectedCell))
+                // Now find the first cell that is either empty or invalid
+                .find(([r, c]) => {
+                    const cell = this._board[r][c];
+                    return cell === '' || cell !== this._puzzle.cells[r][c];
+                });
 
-            if (newRow === row && newCol === col) {
-                // We couldn't find one at this clue, let's try at the start of this clue
-                const clueStart = this.currentClue.cells[0];
-                [newRow, newCol] = this.findNextCell(direction, clueStart, predicate);
-                if (
-                    newRow === clueStart[0] &&
-                    newCol === clueStart[1] &&
-                    !predicate(this._board[newRow][newCol], newRow, newCol)
-                ) {
-                    // Our attempt to find a valid cell at the start of this clue failed.
-                    // We are in the same place, and the first cell is invalid.
-                    // Return to the original position.
-                    [newRow, newCol] = this._selectedCell;
-                }
-            }
+            // If we couldn't find any cell, then just stay in place
+            [newRow, newCol] = maybeNextClueIndex ?? [row, col];
         }
 
         if (this.isValidCell(newRow, newCol)) {
             this._selectedCell = [newRow, newCol];
         } else if (mode === 'force') {
             // Force means that if we can't move directly in the direction, then we will jump to the same directional clue on the same col/row.
-            const nextClue = this.findNextClue(this._direction, true);
-            if (nextClue) {
-                this._selectedCell = nextClue;
-            }
+            this._selectedCell = this.findNextCell(direction, this._selectedCell, cell => cell !== null, false);
         } else {
             // If it's an invalid cell and not a forceful movement, we don't move.
         }
@@ -206,7 +202,8 @@ export class Controller {
     private findNextCell(
         direction: MovementDirection,
         cell: CellIndex,
-        predicate: (cell: CellValue, row: number, col: number) => boolean = cell => cell === ''
+        predicate: (cell: CellValue, row: number, col: number) => boolean = cell => cell === '',
+        stopOnBlank = true
     ): CellIndex {
         const [row, col] = cell;
         let newRow = row;
@@ -218,9 +215,8 @@ export class Controller {
 
         while (true) {
             // We are out of bounds, meaning there is no next possible non-empty cell.
-            // So move into the direct next cell.
-            if (!this.isValidCell(newRow, newCol)) {
-                return [row + rowModifier, col + colModifier];
+            if (stopOnBlank ? !this.isValidCell(newRow, newCol) : !this.isValidCellIndex(newRow, newCol)) {
+                return [row, col];
             }
 
             if (predicate(this._board[newRow][newCol], newRow, newCol)) {
@@ -234,10 +230,13 @@ export class Controller {
         return [newRow, newCol];
     }
 
-    private isValidCell(row: number, col: number): boolean {
+    private isValidCellIndex(row: number, col: number): boolean {
         return row >= 0 && col >= 0 &&
-            row < this._puzzle.height && col < this._puzzle.width &&
-            this._puzzle.cells[row][col] !== null;
+            row < this._puzzle.height && col < this._puzzle.width;
+    }
+
+    private isValidCell(row: number, col: number): boolean {
+        return this.isValidCellIndex(row, col) && this._puzzle.cells[row][col] !== null;
     }
 
     cluesForDirection(direction: GridDirection): Clue[] {
@@ -276,36 +275,69 @@ export class Controller {
         return clue.cells.every(([row, col]) => this._board[row][col] !== '');
     }
 
-    private findNextClue(direction: GridDirection, sameAxis = false): CellIndex | null {
-        const directionalClues = this.cluesForDirection(direction);
+    // Same axis meaning same row/col (depending on the direction)
+    private findNextClue(direction: MovementDirection, sameAxis = false): CellIndex | null {
+        const gridDirection = movementDirectionToGridDirection(direction);
+        const directionalClues = this.cluesForDirection(gridDirection);
         const clue = this.currentClue;
 
-        const next = directionalClues.find(c => {
-            // If we are bound to stay to the same axis as the direction
-            if (sameAxis) {
-                if (direction === 'across' && c.cells[0][0] != clue.cells[0][0]) {
-                    return false;
-                } else if (direction === 'down' && c.cells[0][1] != clue.cells[0][1]) {
-                    return false;
-                }
-            }
-
-            return c.id > clue.id;
-        });
-
-        if (next) {
-            return next.cells[0];
+        if (direction === 'up' || direction === 'left') {
+            // We want to search from the bottom to the top for up, and right to left for left;
+            // so we get the nearest clue
+            directionalClues.reverse();
         }
 
-        return null;
+        const next = directionalClues
+            .filter(c => {
+                if (!sameAxis) {
+                    return c.id > clue.id;
+                }
+
+                // If we are bound to stay in the same direction, then need to check if cell row or col is the same
+                const horizontalCheck = c.cells[0][0] === clue.cells[0][0];
+                const verticalCheck = c.cells[0][1] === clue.cells[0][1];
+
+                // @formatter:off
+                switch (direction) {
+                    case 'right': return horizontalCheck && c.id > clue.id;
+                    case 'down': return verticalCheck && c.id > clue.id;
+                    case 'left': return horizontalCheck && c.id < clue.id;
+                    case 'up': return verticalCheck && c.id < clue.id;
+                }
+            // @formatter:on
+            })
+            .map((c, i): [Clue, number] => {
+                if (sameAxis) {
+                    const distance = (clue.id - c.id);
+                    return [c, distance];
+                } else {
+                    return [c, i];
+                }
+            })
+            .sort(([, distance1], [, distance2]) => distance2 - distance1)
+            .map(([clue]) => clue)
+            ?.[0];
+
+        if (!next) {
+            return null;
+        }
+
+        if (sameAxis && (direction === 'up' || direction === 'left')) {
+            // The most likely case is that we are using arrow keys to move backwards.
+            // We want to be in the immediate next cell.
+            return next.cells[next.cells.length - 1];
+        } else {
+            return next.cells[0];
+        }
     }
 
     private changeDirection(direction: GridDirection): boolean {
         if (this._direction !== direction) {
             this._direction = direction;
             return true;
+        } else {
+            return false;
         }
-        return false;
     }
 
     get isFilled(): boolean {
@@ -326,6 +358,15 @@ export class Controller {
         } else {
             console.error(`Could not find clue with ID ${clueIndex}`);
         }
+    }
+
+    isCellCorrect(cell: CellIndex): boolean {
+        // important for this to be case-insensitive
+        const [row, col] = cell;
+        const correctValue = this._puzzle.cells[row][col]?.toLowerCase();
+        if (!correctValue) { return false; }
+
+        return correctValue === this._board[row][col]?.toLowerCase();
     }
 
     save() {

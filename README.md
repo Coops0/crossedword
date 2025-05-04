@@ -5,3 +5,5 @@
 - fix for mobile
 - squashed crossword data format
 - fix auto scroll (should be smooth), and don't reshow scroll bar if not moving
+- alt + down = tab behavior
+- alt + up = inverse tab behavior

@@ -48,7 +48,7 @@ export class Renderer {
             const filled = this._controller.puzzle.cells[row][col];
             const current = this._controller.board[row][col];
             if (filled && current) {
-                if (filled === current) {
+                if (this._controller.isCellCorrect([row, col])) {
                     cellElement.classList.add('correct');
                 } else {
                     cellElement.classList.add('incorrect');
