@@ -1,23 +1,26 @@
 /// Character | null
 /// Null = blacked out cell
-export type Cell = string | null;
+export type CellValue = string | null;
+export type CellIndex = [number, number];
 
 export interface Clue {
     /// ID for the ROW OR COL. There may be an ID 1 for both across and down.
     id: number;
     text: string;
-    cells: [number, number][];
+    cells: CellIndex[];
 }
 
 export interface Puzzle {
+    id: number;
     width: number;
     height: number;
-    cells: Cell[][];
+    cells: CellValue[][];
     acrossClues: Clue[];
     downClues: Clue[];
 }
 
 export const puzzle: Puzzle = {
+    id: 1,
     width: 6,
     height: 5,
     cells: [
