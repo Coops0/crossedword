@@ -1,0 +1,58 @@
+.cell {
+   .blacked-out {
+
+   }
+
+    .normal {
+
+    }
+
+    .cell-selected {
+
+    }
+
+    .group-selected {
+
+    }
+
+    .clue-id {
+
+    }
+}
+
+.grid {
+
+}
+
+.grid .row {
+}
+
+.clue-lists {
+
+}
+
+.clue-lists .clue-list {
+
+}
+
+.clue-list .clue {
+   .text {
+
+   }
+
+    .id {
+
+    }
+
+    .selected {
+
+    }
+
+    .filled {
+
+    }
+}
+
+.puzzle-container {
+
+}

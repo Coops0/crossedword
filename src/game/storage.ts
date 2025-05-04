@@ -18,7 +18,7 @@ export function loadPuzzle(puzzleId: number): PuzzleSession | null {
     }
 }
 
-export function savePuzzle(puzzleId: number, board: CellValue[][], selectedCell: CellIndex | null, direction: GridDirection, status: PuzzleStatus): void {
+export function savePuzzle(puzzleId: number, board: CellValue[][], selectedCell: CellIndex, direction: GridDirection, status: PuzzleStatus): void {
     let puzzles: PuzzleSession[] = [];
     try {
         puzzles = JSON.parse(localStorage.getItem('puzzles') || '[]') as PuzzleSession[];
