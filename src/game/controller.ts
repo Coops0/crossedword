@@ -1,6 +1,6 @@
 import { CellIndex, CellValue, Clue, Puzzle } from './provider.ts';
 import { loadPuzzle, savePuzzle } from './storage.ts';
-import { isSameCell } from '../util.ts';
+import { isSameCell, opposingDirection } from '../util.ts';
 
 export type GridDirection = 'across' | 'down';
 export type PuzzleStatus = 'in-progress' | 'filled' | 'completed' | 'not-started';
@@ -103,7 +103,7 @@ export class Controller {
     handleClickCell(cell: CellIndex) {
         if (isSameCell(cell, this._selectedCell)) {
             // If we click the same cell, we want to change the direction
-            this._direction = this._direction === 'across' ? 'down' : 'across';
+            this._direction = opposingDirection(this._direction);
         } else if (this.isValidCell(cell[0], cell[1])) {
             this._selectedCell = cell;
         }
@@ -209,6 +209,11 @@ export class Controller {
         }
 
         return clue;
+    }
+
+    get inverseCurrentClue(): Clue {
+        const oppositeDirectionalClues = this.cluesForDirection(opposingDirection(this._direction));
+        return oppositeDirectionalClues.find(clue => clue.cells.some(cell => isSameCell(cell, this._selectedCell)))!;
     }
 
     isClueFilled(clueId: number, direction: GridDirection): boolean {

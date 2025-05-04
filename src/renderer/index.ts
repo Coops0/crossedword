@@ -80,7 +80,7 @@ export class Renderer {
 
         if (clue.id === this._controller.currentClue.id && direction === this._controller.direction) {
             clueElement.classList.add('selected');
-        } else if (clue.cells.some(cell => isSameCell(cell, this._controller.selectedCell))) {
+        } else if (this._controller.inverseCurrentClue.id === clue.id && this._controller.direction !== direction) {
             clueElement.classList.add('inverse-selected');
         }
 

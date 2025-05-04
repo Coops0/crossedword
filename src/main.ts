@@ -1,7 +1,8 @@
 import './style.css';
 import { Controller, GridDirection } from './game/controller.ts';
-import { CellIndex, puzzle } from './game/provider.ts';
+import { CellIndex, Clue, puzzle } from './game/provider.ts';
 import { Renderer } from './renderer';
+import { opposingDirection } from './util.ts';
 
 const app = document.getElementById('app')!;
 const controller = new Controller(puzzle);
@@ -11,9 +12,20 @@ if (controller.status === 'not-started') {
     controller.start();
 }
 
+const scrollToClue = (clue: Clue, direction: GridDirection) => {
+    const clueElement = document.querySelector(`.clue[data-id="${clue.id}"][data-direction="${direction}"]`) as HTMLElement;
+    clueElement.scrollIntoView({
+        behavior: 'instant',
+        block: 'start',
+    });
+};
+
 const refresh = () => {
     app.replaceChildren(renderer.render());
     controller.save();
+
+    scrollToClue(controller.currentClue, controller.direction);
+    scrollToClue(controller.inverseCurrentClue, opposingDirection(controller.direction));
 };
 
 refresh();
