@@ -64,49 +64,67 @@ export class Controller {
         if (key === 'Backspace') {
             // Backspace we want to clear the current cell then move back
             this.updateSelectedCell('');
-            this.moveCursor(this._direction === 'across' ? 'left' : 'up', false, true);
-        } else if (key === 'Enter' || key === 'Tab') {
+            this.moveCursor(this._direction === 'across' ? 'left' : 'up', 'normal');
+            return;
+        }
+
+        if (key === 'Enter' || key === 'Tab') {
             // Enter or Tab we want to find the next clue forcefully, and if we are at the end of clues, then go back to the start
             const next = this.findNextClue(this._direction);
             if (next) {
                 this._selectedCell = next;
-            } else {
-                // At the end of this grid, go back to the start in the opposite direction
-                this._direction = opposingDirection(this._direction);
-                const firstClue = this.cluesForDirection(this._direction)[0];
-                this._selectedCell = firstClue.cells[0];
+                return;
             }
-        } else if (key === 'ArrowLeft') {
+            // At the end of this grid, go back to the start in the opposite direction
+            this._direction = opposingDirection(this._direction);
+            const firstClue = this.cluesForDirection(this._direction)[0];
+            this._selectedCell = firstClue.cells[0];
+            return;
+        }
+
+        if (key === 'ArrowLeft') {
             // Any arrow keys, if our direction doesn't match the key direction, then we just change direction and stop.
             // If it does match, then we move the cursor in that direction forcefully
-            if (this.changeDirection('across')) return;
-            this.moveCursor('left', true);
-        } else if (key === 'ArrowRight') {
-            if (this.changeDirection('across')) return;
-            this.moveCursor('right', true);
-        } else if (key === 'ArrowUp') {
-            if (this.changeDirection('down')) return;
-            this.moveCursor('up', true);
-        } else if (key === 'ArrowDown') {
-            if (this.changeDirection('down')) return;
-            this.moveCursor('down', true);
-        } else if (key === ' ') {
+            if (!this.changeDirection('across')) { this.moveCursor('left', 'force'); }
+            return;
+        }
+        if (key === 'ArrowRight') {
+            if (!this.changeDirection('across')) { this.moveCursor('right', 'force'); }
+            return;
+        }
+        if (key === 'ArrowUp') {
+            if (!this.changeDirection('down')) { this.moveCursor('up', 'force'); }
+            return;
+        }
+        if (key === 'ArrowDown') {
+            if (!this.changeDirection('down')) { this.moveCursor('down', 'force'); }
+            return;
+        }
+
+        if (key === ' ') {
             // Space we want to act like we are inserting a space (but really we are just clearing the cell) then move right
             this.updateSelectedCell('');
-            this.moveCursor(this.nextCellDirection);
-        } else if (key.length === 1) {
+            this.moveCursor(this.nextCellDirection, 'normal');
+            return;
+        }
+
+        if (key.length === 1) {
             // Any other key is the character to insert into the cell.
             // This can be pretty much any character
             this.updateSelectedCell(key as CellValue);
+            if (this._preferences.autoCheck) {
+                // If auto check is enabled, then we want to skip to the next invalid or empty
+                this.moveCursor(this.nextCellDirection, 'next-invalid');
+                return;
+            }
+
             const clue = this.currentClue;
             const currentCellIndex = clue.cells.findIndex(cell => isSameCell(cell, this._selectedCell));
-            if (this._preferences.autoCheck) {
-                this.moveCursor(this.nextCellDirection);
-            }
-            // If we are at the last cell of the clue, we will stay in place. If not, then move
             if (currentCellIndex !== clue.cells.length - 1) {
-                this.moveCursor(this.nextCellDirection);
+                // If we are at the last cell of the clue, we will stay in place. If not, then move
+                this.moveCursor(this.nextCellDirection, 'next-unfilled');
             }
+            return;
         }
     }
 
@@ -138,25 +156,44 @@ export class Controller {
         this.updateFilledStatus();
     }
 
-    // Force meaning to continue moving past any blanked out cells
-    // Respect filled meaning to try to jump past any filled cells
-    private moveCursor(direction: MovementDirection, force = false, respectFilled = false) {
+    private moveCursor(direction: MovementDirection, mode: MoveCursorMode) {
         const [row, col] = this._selectedCell;
         let newRow = row;
         let newCol = col;
 
-        if (force || respectFilled) {
+        if (mode === 'force' || mode === 'normal') {
             const [rowModifier, colModifier] = directionToModifier(direction);
             newRow += rowModifier;
             newCol += colModifier;
-        } else {
+        } else if (mode === 'next-unfilled') {
             // Ignore filled, try to jump to the next empty cell
-            [newRow, newCol] = this.findNextEmptyCell(direction, this._selectedCell);
+            [newRow, newCol] = this.findNextCell(direction, this._selectedCell);
+        } else {
+            // next-invalid
+            const predicate = (cell: CellValue, r: number, c: number) => cell === '' || this._puzzle.cells[r][c] !== cell;
+            [newRow, newCol] = this.findNextCell(direction, this._selectedCell, predicate);
+
+            if (newRow === row && newCol === col) {
+                // We couldn't find one at this clue, let's try at the start of this clue
+                const clueStart = this.currentClue.cells[0];
+                [newRow, newCol] = this.findNextCell(direction, clueStart, predicate);
+                if (
+                    newRow === clueStart[0] &&
+                    newCol === clueStart[1] &&
+                    !predicate(this._board[newRow][newCol], newRow, newCol)
+                ) {
+                    // Our attempt to find a valid cell at the start of this clue failed.
+                    // We are in the same place, and the first cell is invalid.
+                    // Return to the original position.
+                    [newRow, newCol] = this._selectedCell;
+                }
+            }
         }
 
         if (this.isValidCell(newRow, newCol)) {
             this._selectedCell = [newRow, newCol];
-        } else if (force) {
+        } else if (mode === 'force') {
+            // Force means that if we can't move directly in the direction, then we will jump to the same directional clue on the same col/row.
             const nextClue = this.findNextClue(this._direction, true);
             if (nextClue) {
                 this._selectedCell = nextClue;
@@ -166,7 +203,11 @@ export class Controller {
         }
     }
 
-    private findNextEmptyCell(direction: MovementDirection, cell: CellIndex): CellIndex {
+    private findNextCell(
+        direction: MovementDirection,
+        cell: CellIndex,
+        predicate: (cell: CellValue, row: number, col: number) => boolean = cell => cell === ''
+    ): CellIndex {
         const [row, col] = cell;
         let newRow = row;
         let newCol = col;
@@ -182,7 +223,7 @@ export class Controller {
                 return [row + rowModifier, col + colModifier];
             }
 
-            if (this._board[newRow][newCol] === '') {
+            if (predicate(this._board[newRow][newCol], newRow, newCol)) {
                 break;
             } else {
                 newRow += rowModifier;
@@ -303,3 +344,5 @@ function directionToModifier(direction: MovementDirection): [number, number] {
     if (direction === 'down') { return [1, 0]; }
     throw new Error('Unreachable');
 }
+
+type MoveCursorMode = 'normal' | 'force' | 'next-unfilled' | 'next-invalid';
