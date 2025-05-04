@@ -23,5 +23,5 @@ dist-ssr
 *.sln
 *.sw?
 
-/scripts/nyt.json
-/scripts/nyt-out.json
+scripts/nyt.json
+scripts/nyt-out.json
