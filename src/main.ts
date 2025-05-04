@@ -3,10 +3,12 @@ import { Controller, GridDirection } from './game/controller.ts';
 import { CellIndex, Clue, puzzle } from './game/provider.ts';
 import { Renderer } from './renderer';
 import { opposingDirection } from './util.ts';
+import { Preferences } from './game/preferences.ts';
 
 const app = document.getElementById('app')!;
-const controller = new Controller(puzzle);
-const renderer = new Renderer(controller);
+const preferences = new Preferences();
+const controller = new Controller(puzzle, preferences);
+const renderer = new Renderer(controller, preferences);
 
 if (controller.status === 'not-started') {
     controller.start();

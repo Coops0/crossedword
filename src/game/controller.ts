@@ -1,6 +1,7 @@
 import { CellIndex, CellValue, Clue, Puzzle } from './provider.ts';
 import { loadPuzzle, savePuzzle } from './storage.ts';
 import { isSameCell, opposingDirection } from '../util.ts';
+import { Preferences } from './preferences.ts';
 
 export type GridDirection = 'across' | 'down';
 export type PuzzleStatus = 'in-progress' | 'filled' | 'completed' | 'not-started';
@@ -8,12 +9,13 @@ export type MovementDirection = 'left' | 'right' | 'up' | 'down';
 
 export class Controller {
     private readonly _puzzle: Puzzle;
+    private readonly _preferences: Preferences;
     private readonly _board: CellValue[][];
     private _selectedCell: CellIndex;
     private _direction: 'across' | 'down';
     private _status: PuzzleStatus;
 
-    constructor(puzzle: Puzzle) {
+    constructor(puzzle: Puzzle, preferences: Preferences) {
         this._puzzle = puzzle;
         const session = loadPuzzle(puzzle.id) ?? {
             id: puzzle.id,
@@ -22,6 +24,7 @@ export class Controller {
             direction: 'across',
             status: 'not-started'
         };
+        this._preferences = preferences;
 
         this._board = session.board;
         this._selectedCell = session.selectedCell;
@@ -64,7 +67,15 @@ export class Controller {
             this.moveCursor(this._direction === 'across' ? 'left' : 'up', false, true);
         } else if (key === 'Enter' || key === 'Tab') {
             // Enter or Tab we want to find the next clue forcefully, and if we are at the end of clues, then go back to the start
-            this._selectedCell = this.findNextClue(this._direction)!;
+            const next = this.findNextClue(this._direction);
+            if (next) {
+                this._selectedCell = next;
+            } else {
+                // At the end of this grid, go back to the start in the opposite direction
+                this._direction = opposingDirection(this._direction);
+                const firstClue = this.cluesForDirection(this._direction)[0];
+                this._selectedCell = firstClue.cells[0];
+            }
         } else if (key === 'ArrowLeft') {
             // Any arrow keys, if our direction doesn't match the key direction, then we just change direction and stop.
             // If it does match, then we move the cursor in that direction forcefully
@@ -89,6 +100,9 @@ export class Controller {
             this.updateSelectedCell(key as CellValue);
             const clue = this.currentClue;
             const currentCellIndex = clue.cells.findIndex(cell => isSameCell(cell, this._selectedCell));
+            if (this._preferences.autoCheck) {
+                this.moveCursor(this.nextCellDirection);
+            }
             // If we are at the last cell of the clue, we will stay in place. If not, then move
             if (currentCellIndex !== clue.cells.length - 1) {
                 this.moveCursor(this.nextCellDirection);
@@ -240,11 +254,6 @@ export class Controller {
 
         if (next) {
             return next.cells[0];
-        }
-
-        // If not bound to the same axis, we can just go to the first clue if we are at the end
-        if (!sameAxis) {
-            return directionalClues[0].cells[0];
         }
 
         return null;

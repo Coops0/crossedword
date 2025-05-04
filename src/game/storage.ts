@@ -35,3 +35,20 @@ export function savePuzzle(puzzleId: number, board: CellValue[][], selectedCell:
 
     localStorage.setItem('puzzles', JSON.stringify(puzzles));
 }
+
+export interface PreferencesConfig {
+    autoCheck: boolean;
+}
+
+export function loadPreferences(): PreferencesConfig | null {
+    try {
+        const preferences = JSON.parse(localStorage.getItem('preferences') || 'null') as PreferencesConfig;
+        return preferences ?? null;
+    } catch {
+        return null;
+    }
+}
+
+export function savePreferences(autoCheck: boolean) {
+    localStorage.setItem('preferences', JSON.stringify(<PreferencesConfig>{ autoCheck }));
+}

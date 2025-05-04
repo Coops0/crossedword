@@ -1,14 +1,17 @@
 import { Controller, GridDirection } from '../game/controller.ts';
 import { isSameCell } from '../util.ts';
 import { Clue } from '../game/provider.ts';
+import { Preferences } from '../game/preferences.ts';
 
 // TODO clean this up where we are only exposing like render both lists to self, we don't need to have full nested rendering methods in this
 export class Renderer {
-    private _controller: Controller;
+    private readonly _controller: Controller;
+    private readonly _preferences: Preferences;
 
-    constructor(controller: Controller) {
+    constructor(controller: Controller, preferences: Preferences) {
         // Technically a reference
         this._controller = controller;
+        this._preferences = preferences;
     }
 
     private renderCell(row: number, col: number): HTMLDivElement {
@@ -16,8 +19,12 @@ export class Renderer {
         const { clues } = this._controller;
 
         const cellElement = document.createElement('div');
-        cellElement.innerText = cell || '';
         cellElement.classList.add('cell');
+
+        const cellText = document.createElement('span');
+        cellText.classList.add('text');
+        cellText.innerText = cell || '';
+        cellElement.appendChild(cellText);
 
         if (cell === null) {
             cellElement.classList.add('blacked-out');
@@ -31,17 +38,35 @@ export class Renderer {
             cellElement.classList.add('group-selected');
         }
 
+        const { width, height } = this._controller.puzzle;
+        if (row === 0) { cellElement.classList.add('top-border'); }
+        if (row === height - 1) { cellElement.classList.add('bottom-border'); }
+        if (col === 0) { cellElement.classList.add('left-border'); }
+        if (col === width - 1) { cellElement.classList.add('right-border'); }
+
+        if (this._preferences.autoCheck) {
+            const filled = this._controller.puzzle.cells[row][col];
+            const current = this._controller.board[row][col];
+            if (filled && current) {
+                if (filled === current) {
+                    cellElement.classList.add('correct');
+                } else {
+                    cellElement.classList.add('incorrect');
+                }
+            }
+        }
+
         for (const clue of clues.down.concat(clues.across)) {
             if (isSameCell(clue.cells[0], [row, col])) {
                 const clueIdElement = document.createElement('span');
                 clueIdElement.classList.add('clue-id');
                 clueIdElement.innerText = clue.id.toString();
                 cellElement.appendChild(clueIdElement);
+                break;
             }
         }
 
         cellElement.dataset['cell'] = `${row},${col}`;
-
         return cellElement;
     }
 
@@ -125,6 +150,7 @@ export class Renderer {
 
         // todo status
 
+        // todo grid shows current clue at top
         const grid = this.renderGrid();
         const clueLists = this.renderClueLists();
 
