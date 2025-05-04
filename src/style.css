@@ -1,58 +1,200 @@
-.cell {
-   .blacked-out {
+:root {
+    --cell-size: 45px;
+    --cell-border: 0.01em solid #696969;
+    --cell-selected-bg: #ffda00;
+    --cell-group-selected-bg: #a7d8ff;
+    --cell-blacked-out-bg: #333;
+    --clue-selected-bg: #a7d8ff;
+    --clue-filled-color: #959595;
+    --app-bg-color: #f9fafb;
+}
 
-   }
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--app-bg-color);
+    font-family: Arial, sans-serif;
+    color: #333;
+    line-height: 1.6;
+}
 
-    .normal {
+#app {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+}
 
-    }
+.puzzle-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
+    padding: 20px;
+    /*max-width: 1200px;*/
+    margin: 0 auto;
+    font-family: Arial, sans-serif;
+}
 
-    .cell-selected {
-
-    }
-
-    .group-selected {
-
-    }
-
-    .clue-id {
-
+@media (min-width: 768px) {
+    .puzzle-container {
+        flex-direction: row;
+        align-items: flex-start;
+        padding: 30px;
     }
 }
 
 .grid {
-
+    display: flex;
+    flex-direction: column;
+    border: 3px solid #000;
+    border-radius: 4px;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    background-color: white;
+    margin-bottom: 20px;
 }
 
 .grid .row {
+    display: flex;
+}
+
+.cell {
+    width: var(--cell-size);
+    height: var(--cell-size);
+    border: var(--cell-border);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    font-size: 20px;
+    text-transform: uppercase;
+    cursor: pointer;
+    user-select: none;
+}
+
+.cell.blacked-out {
+    background-color: var(--cell-blacked-out-bg);
+}
+
+.cell.normal {
+    background-color: white;
+}
+
+.cell.normal:hover:not(.cell-selected):not(.group-selected) {
+    background-color: #f0f0f0;
+}
+
+.cell.cell-selected {
+    background-color: var(--cell-selected-bg);
+    box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.3);
+    z-index: 2;
+}
+
+.cell.group-selected {
+    background-color: var(--cell-group-selected-bg);
+}
+
+.cell .clue-id {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 10px;
+    font-weight: normal;
+    color: #555;
 }
 
 .clue-lists {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    flex: 1;
+    max-width: 100%;
+    overflow-y: auto;
+    max-height: 600px;
+}
 
+@media (min-width: 768px) {
+    .clue-lists {
+        max-height: none;
+        overflow-y: visible;
+    }
 }
 
 .clue-lists .clue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    border: 1px solid #eee;
+    padding: 15px;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
 
+.clue-lists .clue-list:before {
+    content: "Across";
+    font-weight: bold;
+    font-size: 1.2em;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 2px solid #ddd;
+    color: #555;
+}
+
+.clue-lists .clue-list:nth-child(2):before {
+    content: "Down";
 }
 
 .clue-list .clue {
-   .text {
-
-   }
-
-    .id {
-
-    }
-
-    .selected {
-
-    }
-
-    .filled {
-
-    }
+    padding: 8px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: baseline;
+    transition: all 0.2s;
+    margin-bottom: 2px;
+    border-left: 3px solid transparent;
 }
 
-.puzzle-container {
+.clue-list .clue:hover {
+    background-color: #f0f0f0;
+}
 
+.clue-list .clue .id {
+    font-weight: bold;
+    margin-right: 8px;
+    min-width: 25px;
+    text-align: right;
+    color: #666;
+}
+
+.clue-list .clue .text {
+    flex: 1;
+    line-height: 1.4;
+}
+
+.clue-list .clue.selected {
+    background-color: var(--clue-selected-bg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.clue-list .clue.inverse-selected {
+    border-left: 3px solid var(--clue-selected-bg);
+}
+
+.clue-list .clue.filled {
+    color: var(--clue-filled-color);
+}
+
+@media (max-width: 480px) {
+    :root {
+        --cell-size: 30px;
+    }
+
+    .cell {
+        font-size: 16px;
+    }
+
+    .cell .clue-id {
+        font-size: 8px;
+    }
 }

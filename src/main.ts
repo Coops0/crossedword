@@ -18,30 +18,38 @@ const refresh = () => {
 
 refresh();
 
-document.addEventListener('keydown', (event) => {
-    event.preventDefault();
+document.addEventListener('keydown', event => {
     if (controller.status === 'not-started' || controller.status === 'completed') {
         return;
     }
+
+    if (event.altKey || event.ctrlKey || event.metaKey) {
+        return;
+    }
+
+    event.preventDefault();
 
     controller.handleKeyPress(event.key);
     refresh();
 });
 
-document.addEventListener('click', (event) => {
-    event.preventDefault();
+document.addEventListener('click', event => {
     const target = event.target as HTMLElement;
+    if (!target) return;
 
-    if (target.classList.contains('cell')) {
-        const cell = target.dataset['cell']!.split(',').map(Number) as CellIndex;
+    const cellElement = target.closest('.cell') as HTMLElement | null;
+    if (cellElement) {
+        const cell = cellElement.dataset['cell']!.split(',').map(Number) as CellIndex;
         controller.handleClickCell(cell);
-    } else if (target.classList.contains('clue')) {
-        const clueId = +target.dataset['id']!;
-        const direction = target.dataset['direction'] as GridDirection;
-        controller.jumpToClue(clueId, direction);
-    } else {
+        refresh();
         return;
     }
 
-    refresh();
+    const clueElement = target.closest('.clue') as HTMLElement | null;
+    if (clueElement) {
+        const clueId = +clueElement.dataset['id']!;
+        const direction = clueElement.dataset['direction'] as GridDirection;
+        controller.jumpToClue(clueId, direction);
+        refresh();
+    }
 });

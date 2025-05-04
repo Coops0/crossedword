@@ -13,7 +13,7 @@ export class Renderer {
 
     private renderCell(row: number, col: number): HTMLDivElement {
         const cell = this._controller.board[row][col];
-        const clue = this._controller.currentClue;
+        const { clues } = this._controller;
 
         const cellElement = document.createElement('div');
         cellElement.innerText = cell || '';
@@ -27,15 +27,17 @@ export class Renderer {
 
         if (isSameCell(this._controller.selectedCell, [row, col])) {
             cellElement.classList.add('cell-selected');
-        } else if (clue.cells.some(cell => isSameCell(cell, [row, col]))) {
+        } else if (this._controller.currentClue.cells.some(cell => isSameCell(cell, [row, col]))) {
             cellElement.classList.add('group-selected');
         }
 
-        if (isSameCell(clue.cells[0], [row, col])) {
-            const clueIdElement = document.createElement('span');
-            clueIdElement.classList.add('clue-id');
-            clueIdElement.innerText = clue.id.toString();
-            cellElement.appendChild(clueIdElement);
+        for (const clue of clues.down.concat(clues.across)) {
+            if (isSameCell(clue.cells[0], [row, col])) {
+                const clueIdElement = document.createElement('span');
+                clueIdElement.classList.add('clue-id');
+                clueIdElement.innerText = clue.id.toString();
+                cellElement.appendChild(clueIdElement);
+            }
         }
 
         cellElement.dataset['cell'] = `${row},${col}`;
@@ -76,8 +78,10 @@ export class Renderer {
         clueTextElement.innerText = clue.text;
         clueElement.appendChild(clueTextElement);
 
-        if (clue.id === this._controller.currentClue.id) {
+        if (clue.id === this._controller.currentClue.id && direction === this._controller.direction) {
             clueElement.classList.add('selected');
+        } else if (clue.cells.some(cell => isSameCell(cell, this._controller.selectedCell))) {
+            clueElement.classList.add('inverse-selected');
         }
 
         if (this._controller.isClueFilled(clue.id, direction)) {

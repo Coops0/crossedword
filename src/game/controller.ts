@@ -61,10 +61,10 @@ export class Controller {
         if (key === 'Backspace') {
             // Backspace we want to clear the current cell then move back
             this.updateSelectedCell('');
-            this.moveCursor('left');
+            this.moveCursor(this._direction === 'across' ? 'left' : 'up', false, true);
         } else if (key === 'Enter' || key === 'Tab') {
             // Enter or Tab we want to find the next clue forcefully, and if we are at the end of clues, then go back to the start
-            this.moveCursor('right', true);
+            this._selectedCell = this.findNextClue(this._direction)!;
         } else if (key === 'ArrowLeft') {
             // Any arrow keys, if our direction doesn't match the key direction, then we just change direction and stop.
             // If it does match, then we move the cursor in that direction forcefully
@@ -82,13 +82,22 @@ export class Controller {
         } else if (key === ' ') {
             // Space we want to act like we are inserting a space (but really we are just clearing the cell) then move right
             this.updateSelectedCell('');
-            this.moveCursor('right');
+            this.moveCursor(this.nextCellDirection);
         } else if (key.length === 1) {
             // Any other key is the character to insert into the cell.
             // This can be pretty much any character
             this.updateSelectedCell(key as CellValue);
-            this.moveCursor('right');
+            const clue = this.currentClue;
+            const currentCellIndex = clue.cells.findIndex(cell => isSameCell(cell, this._selectedCell));
+            // If we are at the last cell of the clue, we will stay in place. If not, then move
+            if (currentCellIndex !== clue.cells.length - 1) {
+                this.moveCursor(this.nextCellDirection);
+            }
         }
+    }
+
+    private get nextCellDirection(): MovementDirection {
+        return this._direction === 'across' ? 'right' : 'down';
     }
 
     handleClickCell(cell: CellIndex) {
@@ -115,25 +124,59 @@ export class Controller {
         this.updateFilledStatus();
     }
 
-    private moveCursor(direction: MovementDirection, force = false) {
+    // Force meaning to continue moving past any blanked out cells
+    // Respect filled meaning to try to jump past any filled cells
+    private moveCursor(direction: MovementDirection, force = false, respectFilled = false) {
         const [row, col] = this._selectedCell;
         let newRow = row;
         let newCol = col;
 
-        // @formatter:off
-        if (direction === 'left') { newCol--; }
-        else if (direction === 'right') { newCol++;}
-        else if (direction === 'up') { newRow--; }
-        else if (direction === 'down') { newRow++; }
-        // @formatter:on
+        if (force || respectFilled) {
+            const [rowModifier, colModifier] = directionToModifier(direction);
+            newRow += rowModifier;
+            newCol += colModifier;
+        } else {
+            // Ignore filled, try to jump to the next empty cell
+            [newRow, newCol] = this.findNextEmptyCell(direction, this._selectedCell);
+        }
 
         if (this.isValidCell(newRow, newCol)) {
             this._selectedCell = [newRow, newCol];
         } else if (force) {
-            this._selectedCell = this.findNextClue(this._direction);
+            const nextClue = this.findNextClue(this._direction, true);
+            if (nextClue) {
+                this._selectedCell = nextClue;
+            }
         } else {
             // If it's an invalid cell and not a forceful movement, we don't move.
         }
+    }
+
+    private findNextEmptyCell(direction: MovementDirection, cell: CellIndex): CellIndex {
+        const [row, col] = cell;
+        let newRow = row;
+        let newCol = col;
+
+        const [rowModifier, colModifier] = directionToModifier(direction);
+        newRow += rowModifier;
+        newCol += colModifier;
+
+        while (true) {
+            // We are out of bounds, meaning there is no next possible non-empty cell.
+            // So move into the direct next cell.
+            if (!this.isValidCell(newRow, newCol)) {
+                return [row + rowModifier, col + colModifier];
+            }
+
+            if (this._board[newRow][newCol] === '') {
+                break;
+            } else {
+                newRow += rowModifier;
+                newCol += colModifier;
+            }
+        }
+
+        return [newRow, newCol];
     }
 
     private isValidCell(row: number, col: number): boolean {
@@ -157,12 +200,12 @@ export class Controller {
             row++;
         }
 
-        const clues = this.cluesForDirection(this._direction);
-        const clue = clues.find(clue => isSameCell([row, col], clue.cells[0]));
+        const directionalClues = this.cluesForDirection(this._direction);
+        const clue = directionalClues.find(clue => isSameCell([row, col], clue.cells[0]));
 
         if (!clue) {
             console.error(`Could not find clue at ${row}, ${col}, direction: ${this._direction}`);
-            return clues[0];
+            return directionalClues[0];
         }
 
         return clue;
@@ -173,11 +216,33 @@ export class Controller {
         return clue.cells.every(([row, col]) => this._board[row][col] !== '');
     }
 
-    private findNextClue(direction: GridDirection): CellIndex {
-        const clues = this.cluesForDirection(direction);
-        const currentClue = this.currentClue;
+    private findNextClue(direction: GridDirection, sameAxis = false): CellIndex | null {
+        const directionalClues = this.cluesForDirection(direction);
+        const clue = this.currentClue;
 
-        return (clues.find(clue => clue.id > currentClue.id) || clues[0]).cells[0];
+        const next = directionalClues.find(c => {
+            // If we are bound to stay to the same axis as the direction
+            if (sameAxis) {
+                if (direction === 'across' && c.cells[0][0] != clue.cells[0][0]) {
+                    return false;
+                } else if (direction === 'down' && c.cells[0][1] != clue.cells[0][1]) {
+                    return false;
+                }
+            }
+
+            return c.id > clue.id;
+        });
+
+        if (next) {
+            return next.cells[0];
+        }
+
+        // If not bound to the same axis, we can just go to the first clue if we are at the end
+        if (!sameAxis) {
+            return directionalClues[0].cells[0];
+        }
+
+        return null;
     }
 
     private changeDirection(direction: GridDirection): boolean {
@@ -215,4 +280,12 @@ export class Controller {
 
 function puzzleToBoard(puzzle: Puzzle): CellValue[][] {
     return puzzle.cells.map(row => row.map(cell => cell === null ? null : ''));
+}
+
+function directionToModifier(direction: MovementDirection): [number, number] {
+    if (direction === 'left') { return [0, -1]; }
+    if (direction === 'right') { return [0, 1]; }
+    if (direction === 'up') { return [-1, 0]; }
+    if (direction === 'down') { return [1, 0]; }
+    throw new Error('Unreachable');
 }

@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+/scripts/nyt.json
+/scripts/nyt-out.json
