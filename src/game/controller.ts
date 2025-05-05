@@ -33,27 +33,12 @@ export class Controller {
     }
 
     // @formatter:off
-    get puzzle(): Puzzle {
-        return this._puzzle;
-    }
-    get clues(): { across: Clue[], down: Clue[] } {
-        return {
-            across: this._puzzle.acrossClues,
-            down: this._puzzle.downClues
-        };
-    }
-    get board(): CellValue[][] {
-        return this._board;
-    }
-    get selectedCell(): CellIndex {
-        return this._selectedCell;
-    }
-    get direction(): GridDirection {
-        return this._direction;
-    }
-    get status(): PuzzleStatus {
-        return this._status;
-    }
+    get puzzle(): Puzzle { return this._puzzle; }
+    get clues(): { across: Clue[], down: Clue[] } { return { across: this._puzzle.acrossClues, down: this._puzzle.downClues }; }
+    get board(): CellValue[][] { return this._board; }
+    get selectedCell(): CellIndex { return this._selectedCell; }
+    get direction(): GridDirection { return this._direction; }
+    get status(): PuzzleStatus { return this._status; }
     // @formatter:on
 
     start() {
