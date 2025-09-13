@@ -1,0 +1,186 @@
+:root {
+    --cell-size: 23px;
+    --cell-border: 0.005em solid #696969;
+    --cell-selected-bg: #ffda00;
+    --cell-group-selected-bg: #a7d8ff;
+    --cell-blacked-out-bg: #000;
+    --clue-selected-bg: #a7d8ff;
+    --clue-filled-color: #959595;
+    --app-bg-color: #f9fafb;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--app-bg-color);
+    font-family: Arial, sans-serif;
+    color: #121212;
+    line-height: 1.4;
+}
+
+#app {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+}
+
+.puzzle-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
+    padding: 20px;
+    margin: 0 auto;
+    font-family: Arial, sans-serif;
+}
+
+@media (min-width: 768px) {
+    .puzzle-container {
+        flex-direction: row;
+        align-items: flex-start;
+        padding: 30px;
+    }
+}
+
+.grid {
+    display: flex;
+    flex-direction: column;
+    border: 3px solid #000;
+    background-color: white;
+}
+
+.grid .row {
+    display: flex;
+}
+
+.cell {
+    width: var(--cell-size);
+    height: var(--cell-size);
+    border: var(--cell-border);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    font-size: 15px;
+    text-transform: uppercase;
+    user-select: none;
+}
+
+/* @formatter:off */
+.cell.left-border { border-left: none !important; }
+.cell.right-border { border-right: none !important; }
+.cell.top-border { border-top: none !important; }
+.cell.bottom-border { border-bottom: none !important; }
+/* @formatter:on */
+
+.cell .text {
+    margin-top: 10px;
+}
+
+.cell.blacked-out {
+    background-color: var(--cell-blacked-out-bg);
+}
+
+.cell.normal {
+    background-color: white;
+}
+
+.cell.normal:hover:not(.cell-selected):not(.group-selected) {
+    background-color: #f0f0f0;
+}
+
+.cell.cell-selected {
+    background-color: var(--cell-selected-bg);
+    z-index: 2;
+}
+
+.cell.group-selected {
+    background-color: var(--cell-group-selected-bg);
+}
+
+.cell.correct {
+    color: #2860d8;
+}
+
+.cell.incorrect {
+    color: #931919;
+}
+
+.cell .clue-id {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 7px;
+    font-weight: normal;
+}
+
+.clue-lists {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    flex: 1;
+    max-width: 100%;
+}
+
+.clue-lists .clue-list {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overflow-wrap: normal;
+    max-height: 600px;
+    gap: 5px;
+    padding: 15px;
+}
+
+.clue-list .clue {
+    width: 100%;
+    font-size: 14px;
+    padding: 8px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: baseline;
+    transition: all 0.2s;
+    margin-bottom: 2px;
+    border-left: 3px solid transparent;
+}
+
+.clue-list .clue .id {
+    font-weight: bold;
+    margin-right: 8px;
+    min-width: 25px;
+    text-align: right;
+}
+
+.clue-list .clue .text {
+    flex: 1;
+    line-height: 1.4;
+}
+
+.clue-list .clue.selected {
+    background-color: var(--clue-selected-bg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.clue-list .clue.inverse-selected {
+    border-left: 3px solid var(--clue-selected-bg);
+}
+
+.clue-list .clue.filled {
+    color: var(--clue-filled-color);
+}
+
+@media (max-width: 480px) {
+    :root {
+        --cell-size: 30px;
+    }
+
+    .cell {
+        font-size: 16px;
+    }
+
+    .cell .clue-id {
+        font-size: 8px;
+    }
+}
